@@ -3,8 +3,6 @@
 """
 
 import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
 from datetime import datetime
 
@@ -575,10 +573,11 @@ def render_risk_warning():
 
 def create_price_chart(price_data):
     """创建价格走势图"""
-    
+    import plotly.graph_objects as go
+
     if not price_data:
         return None
-    
+
     fig = go.Figure()
     
     # 添加价格线
@@ -603,10 +602,11 @@ def create_price_chart(price_data):
 
 def create_sentiment_gauge(sentiment_score):
     """创建情绪指标仪表盘"""
-    
+    import plotly.graph_objects as go
+
     if sentiment_score is None:
         return None
-    
+
     fig = go.Figure(go.Indicator(
         mode = "gauge+number+delta",
         value = sentiment_score,
