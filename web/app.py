@@ -905,7 +905,7 @@ def main():
 
     page = st.sidebar.selectbox(
         "切换功能模块",
-        ["📊 股票分析", "⚙️ 配置管理", "💾 缓存管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
+        ["📊 股票分析", "📉 Tick助手", "⚙️ 配置管理", "💾 缓存管理", "💰 Token统计", "📋 操作日志", "📈 分析结果", "🔧 系统状态"],
         label_visibility="collapsed"
     )
     
@@ -926,6 +926,17 @@ def main():
     st.sidebar.markdown("---")
 
     # 根据选择的页面渲染不同内容
+    if page == "📉 Tick助手":
+        # 检查分析权限
+        if not require_permission("analysis"):
+            return
+        try:
+            from modules.tick_assistant import render_tick_assistant
+            render_tick_assistant()
+        except ImportError as e:
+            st.error(f"Tick助手模块加载失败: {e}")
+            st.info("请确保已安装所有依赖包")
+        return
     if page == "⚙️ 配置管理":
         # 检查配置权限
         if not require_permission("config"):
