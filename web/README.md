@@ -312,11 +312,18 @@ st.markdown('<link rel="stylesheet" href="static/custom.css">', unsafe_allow_htm
 
 ## 📉 A股/期货 Tick 交易助手
 
-仓库新增了一个独立的 Streamlit 页面：`web/tick_assistant_app.py`，可直接拉取 AkShare 的 A 股与期货 tick/准 tick 行情并可视化。
+仓库新增了 Tick 交易助手模块，已集成到主程序 `web/app.py` 的侧边栏导航（`📉 Tick助手`），同时保留独立入口 `web/tick_assistant_app.py`，可直接拉取 AkShare 的 A 股与期货 tick/准 tick 行情并可视化。
 
 启动方式：
 
 ```bash
+# 方式1：部署入口（Streamlit Cloud 默认识别）
+python -m streamlit run streamlit_app.py
+
+# 方式2：主程序（本地开发，侧边栏切到“📉 Tick助手”）
+python -m streamlit run web/app.py
+
+# 方式3：独立页面
 python -m streamlit run web/tick_assistant_app.py
 ```
 
