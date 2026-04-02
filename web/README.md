@@ -308,3 +308,27 @@ st.markdown('<link rel="stylesheet" href="static/custom.css">', unsafe_allow_htm
 ## 🙏 致谢
 
 感谢 [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) 原始项目提供的优秀框架基础。
+
+
+## 📉 A股/期货 Tick 交易助手
+
+仓库新增了 Tick 交易助手模块，已集成到主程序 `web/app.py` 的侧边栏导航（`📉 Tick助手`），同时保留独立入口 `web/tick_assistant_app.py`，可直接拉取 AkShare 的 A 股与期货 tick/准 tick 行情并可视化。
+
+启动方式：
+
+```bash
+# 方式1：部署入口（Streamlit Cloud 默认识别）
+python -m streamlit run streamlit_app.py
+
+# 方式2：主程序（本地开发，侧边栏切到“📉 Tick助手”）
+python -m streamlit run web/app.py
+
+# 方式3：独立页面
+python -m streamlit run web/tick_assistant_app.py
+```
+
+主要能力：
+- 支持 A 股与期货代码输入（例如 `600519`、`IF0`）
+- 自动尝试多个 AkShare 数据接口并回退
+- 展示关键指标、明细表、价格折线图
+- 一键导出 CSV
