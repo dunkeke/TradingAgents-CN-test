@@ -91,6 +91,24 @@ st.set_page_config(
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* 强制侧边栏始终可见：避免隐藏顶部按钮后无法重新展开 */
+    section[data-testid="stSidebar"] {
+        min-width: 320px !important;
+        width: 320px !important;
+    }
+
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        margin-left: 0 !important;
+        transform: none !important;
+        min-width: 320px !important;
+        width: 320px !important;
+    }
+
+    /* 主内容区域为固定侧边栏留出空间 */
+    .main .block-container {
+        margin-left: 0 !important;
+    }
     
     /* 隐藏Streamlit顶部工具栏和Deploy按钮 - 多种选择器确保兼容性 */
     .stAppToolbar {

@@ -32,7 +32,6 @@ def _read_api_key(key: str) -> str:
     return ""
 
 
-
 def check_api_keys():
     """检查API密钥配置状态。
 
