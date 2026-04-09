@@ -62,6 +62,36 @@ def _sync_streamlit_secrets_to_env() -> None:
 
 
 _sync_streamlit_secrets_to_env()
+
+
+def _has_any_llm_key() -> bool:
+    """兜底检查：任意LLM Key存在即允许进入分析页面。"""
+    llm_keys = [
+        "DEEPSEEK_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GOOGLE_API_KEY",
+        "QIANFAN_API_KEY",
+    ]
+
+    for key in llm_keys:
+        if os.getenv(key):
+            return True
+
+    try:
+        for key in llm_keys:
+            if st.secrets.get(key):
+                return True
+            for section_name in ("api_keys", "keys", "llm", "providers"):
+                section = st.secrets.get(section_name)
+                if section and hasattr(section, "get") and section.get(key):
+                    return True
+    except Exception:
+        pass
+
+    return False
+
 # 导入自定义组件
 from components.sidebar import render_sidebar
 from components.header import render_header
@@ -1095,6 +1125,11 @@ def main():
     # 检查API密钥
     api_status = check_api_keys()
 
+    # 兜底：如果检测到任意LLM Key，则放行（避免不同检查逻辑导致误拦截）
+    if not api_status.get('all_configured', False) and _has_any_llm_key():
+        api_status['all_configured'] = True
+        api_status['required_configured'] = True
+
     if not api_status['all_configured']:
         st.error("⚠️ API密钥配置不完整，请先配置必要的API密钥")
 
@@ -1132,8 +1167,10 @@ def main():
         for key, status in api_status['details'].items():
             if status['configured']:
                 st.success(f"✅ {key}: {status['display']}")
-            else:
+            elif key in {"DEEPSEEK_API_KEY", "DASHSCOPE_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "QIANFAN_API_KEY"}:
                 st.error(f"❌ {key}: 未配置")
+            else:
+                st.info(f"ℹ️ {key}: 未配置")
 
         return
     
