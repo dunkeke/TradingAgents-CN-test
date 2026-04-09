@@ -374,37 +374,29 @@ class StockDataPreparer:
             stock_info = get_china_stock_info_unified(stock_code)
 
             if stock_info and "❌" not in stock_info and "未能获取" not in stock_info:
-                # 解析股票名称
-                if "股票名称:" in stock_info:
-                    lines = stock_info.split('\n')
-                    for line in lines:
-                        if "股票名称:" in line:
-                            stock_name = line.split(':')[1].strip()
-                            break
-
-                # 检查是否为有效的股票名称
-                if stock_name != "未知" and not stock_name.startswith(f"股票{stock_code}"):
-                    has_basic_info = True
-                    logger.info(f"✅ [A股数据] 基本信息获取成功: {stock_code} - {stock_name}")
-                    cache_status += "基本信息已缓存; "
+                # 解析股票名称（兼容中英文冒号）
+                import re
+                match = re.search(r"股票名称[:：]\s*(.+)", stock_info)
+                if match:
+                    parsed_name = match.group(1).strip()
+                    if parsed_name and parsed_name != "未知" and not parsed_name.startswith(f"股票{stock_code}"):
+                        stock_name = parsed_name
+                        has_basic_info = True
+                        logger.info(f"✅ [A股数据] 基本信息获取成功: {stock_code} - {stock_name}")
+                        cache_status += "基本信息已缓存; "
+                    else:
+                        logger.warning(f"⚠️ [A股数据] 基本信息返回有效但名称异常: {stock_code}")
+                        stock_name = stock_code
+                        cache_status += "基本信息部分可用; "
                 else:
-                    logger.warning(f"⚠️ [A股数据] 基本信息无效: {stock_code}")
-                    return StockDataPreparationResult(
-                        is_valid=False,
-                        stock_code=stock_code,
-                        market_type="A股",
-                        error_message=f"股票代码 {stock_code} 不存在或信息无效",
-                        suggestion="请检查股票代码是否正确，或确认该股票是否已上市"
-                    )
+                    logger.warning(f"⚠️ [A股数据] 基本信息缺少股票名称字段: {stock_code}")
+                    stock_name = stock_code
+                    cache_status += "基本信息部分可用; "
             else:
-                logger.warning(f"⚠️ [A股数据] 无法获取基本信息: {stock_code}")
-                return StockDataPreparationResult(
-                    is_valid=False,
-                    stock_code=stock_code,
-                    market_type="A股",
-                    error_message=f"无法获取股票 {stock_code} 的基本信息",
-                    suggestion="请检查股票代码是否正确，或确认该股票是否已上市"
-                )
+                # 不因基本信息失败直接中断，继续尝试历史数据
+                logger.warning(f"⚠️ [A股数据] 无法获取基本信息，将继续尝试历史数据: {stock_code}")
+                stock_name = stock_code
+                cache_status += "基本信息缺失; "
 
             # 4. 获取历史数据（使用扩展后的日期范围）
             logger.debug(f"📊 [A股数据] 获取{stock_code}历史数据 ({extended_start_date_str} 到 {end_date_str})...")
@@ -528,17 +520,27 @@ class StockDataPreparer:
             stock_info = get_china_stock_info_unified(stock_code)
 
             if stock_info and "❌" not in stock_info and "未能获取" not in stock_info:
-                if "股票名称:" in stock_info:
-                    lines = stock_info.split('\n')
-                    for line in lines:
-                        if "股票名称:" in line:
-                            stock_name = line.split(':')[1].strip()
-                            break
-
-                if stock_name != "未知" and not stock_name.startswith(f"股票{stock_code}"):
-                    has_basic_info = True
-                    logger.info(f"✅ [A股数据-异步] 基本信息获取成功: {stock_code} - {stock_name}")
-                    cache_status += "基本信息已缓存; "
+                import re
+                match = re.search(r"股票名称[:：]\s*(.+)", stock_info)
+                if match:
+                    parsed_name = match.group(1).strip()
+                    if parsed_name and parsed_name != "未知" and not parsed_name.startswith(f"股票{stock_code}"):
+                        stock_name = parsed_name
+                        has_basic_info = True
+                        logger.info(f"✅ [A股数据-异步] 基本信息获取成功: {stock_code} - {stock_name}")
+                        cache_status += "基本信息已缓存; "
+                    else:
+                        logger.warning(f"⚠️ [A股数据-异步] 基本信息名称异常，继续尝试历史数据: {stock_code}")
+                        stock_name = stock_code
+                        cache_status += "基本信息部分可用; "
+                else:
+                    logger.warning(f"⚠️ [A股数据-异步] 基本信息缺少股票名称字段，继续尝试历史数据: {stock_code}")
+                    stock_name = stock_code
+                    cache_status += "基本信息部分可用; "
+            else:
+                logger.warning(f"⚠️ [A股数据-异步] 无法获取基本信息，将继续尝试历史数据: {stock_code}")
+                stock_name = stock_code
+                cache_status += "基本信息缺失; "
 
             # 4. 获取历史数据（同步操作）
             logger.debug(f"📊 [A股数据-异步] 获取{stock_code}历史数据...")

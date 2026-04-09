@@ -17,6 +17,16 @@ from web.utils.auth_manager import auth_manager
 
 logger = logging.getLogger(__name__)
 
+
+def _apply_runtime_api_keys(runtime_keys: dict) -> int:
+    """将用户在界面输入的API Key写入当前进程环境变量。"""
+    applied = 0
+    for key, value in runtime_keys.items():
+        if value and value.strip():
+            os.environ[key] = value.strip()
+            applied += 1
+    return applied
+
 def get_version():
     """从VERSION文件读取项目版本号"""
     try:
@@ -962,6 +972,34 @@ def render_sidebar():
         # 系统配置
         st.markdown("**🔧 系统配置**")
 
+        # 运行时API密钥输入
+        with st.expander("🔐 输入API密钥（仅当前会话）", expanded=False):
+            st.caption("适用于 Streamlit Cloud。填写后点击“应用”，仅在当前会话生效，不会写入仓库文件。")
+
+            runtime_deepseek = st.text_input("DEEPSEEK_API_KEY", type="password", placeholder="sk-...", key="runtime_deepseek_api_key")
+            runtime_dashscope = st.text_input("DASHSCOPE_API_KEY", type="password", placeholder="sk-...", key="runtime_dashscope_api_key")
+            runtime_openai = st.text_input("OPENAI_API_KEY", type="password", placeholder="sk-...", key="runtime_openai_api_key")
+            runtime_anthropic = st.text_input("ANTHROPIC_API_KEY", type="password", placeholder="sk-...", key="runtime_anthropic_api_key")
+            runtime_google = st.text_input("GOOGLE_API_KEY", type="password", placeholder="AIza...", key="runtime_google_api_key")
+            runtime_qianfan = st.text_input("QIANFAN_API_KEY", type="password", placeholder="bce-v3/...", key="runtime_qianfan_api_key")
+            runtime_finnhub = st.text_input("FINNHUB_API_KEY (可选)", type="password", placeholder="finnhub key", key="runtime_finnhub_api_key")
+
+            if st.button("✅ 应用密钥到当前会话", use_container_width=True):
+                applied = _apply_runtime_api_keys({
+                    "DEEPSEEK_API_KEY": runtime_deepseek,
+                    "DASHSCOPE_API_KEY": runtime_dashscope,
+                    "OPENAI_API_KEY": runtime_openai,
+                    "ANTHROPIC_API_KEY": runtime_anthropic,
+                    "GOOGLE_API_KEY": runtime_google,
+                    "QIANFAN_API_KEY": runtime_qianfan,
+                    "FINNHUB_API_KEY": runtime_finnhub,
+                })
+                if applied > 0:
+                    st.success(f"已应用 {applied} 个密钥到当前会话环境，页面将刷新。")
+                    st.rerun()
+                else:
+                    st.warning("未检测到可用输入，请先粘贴至少一个API密钥。")
+
         # API密钥状态
         st.markdown("**🔑 API密钥状态**")
 
@@ -984,6 +1022,8 @@ def render_sidebar():
                 return f"{key[:8]}...", "success"
             elif expected_format == "anthropic" and key.startswith("sk-") and len(key) >= 40:
                 return f"{key[:8]}...", "success"
+            elif expected_format == "qianfan" and key.startswith("bce-v3/") and len(key) >= 20:
+                return f"{key[:8]}...", "success"
             elif expected_format == "reddit" and len(key) >= 10:
                 return f"{key[:8]}...", "success"
             else:
@@ -991,16 +1031,39 @@ def render_sidebar():
 
         # 必需的API密钥
         st.markdown("*必需配置:*")
+        st.caption("至少配置一个LLM API密钥即可开始分析（推荐 DeepSeek）")
 
-        # 阿里百炼
+        deepseek_key = os.getenv("DEEPSEEK_API_KEY")
         dashscope_key = os.getenv("DASHSCOPE_API_KEY")
-        status, level = validate_api_key(dashscope_key, "dashscope")
-        if level == "success":
-            st.success(f"✅ 阿里百炼: {status}")
-        elif level == "warning":
-            st.warning(f"⚠️ 阿里百炼: {status}")
-        else:
-            st.error("❌ 阿里百炼: 未配置")
+        openai_key = os.getenv("OPENAI_API_KEY")
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        google_key = os.getenv("GOOGLE_API_KEY")
+        qianfan_key = os.getenv("QIANFAN_API_KEY")
+
+        llm_candidates = [
+            ("DeepSeek", deepseek_key, "deepseek"),
+            ("阿里百炼", dashscope_key, "dashscope"),
+            ("OpenAI", openai_key, "openai"),
+            ("Anthropic", anthropic_key, "anthropic"),
+            ("Google", google_key, "google"),
+            ("千帆", qianfan_key, "qianfan"),
+        ]
+
+        llm_ok = False
+        for name, key, key_format in llm_candidates:
+            status, level = validate_api_key(key, key_format)
+            if level in ["success", "warning"]:
+                llm_ok = True
+                icon = "✅" if level == "success" else "⚠️"
+                (st.success if level == "success" else st.warning)(f"{icon} {name}: {status}")
+            else:
+                st.info(f"ℹ️ {name}: 未配置")
+
+        if not llm_ok:
+            st.error("❌ 当前未检测到可用LLM API密钥，请在上方输入或配置 Secrets/.env")
+
+        # 可选的API密钥
+        st.markdown("*可选配置:*")
 
         # FinnHub
         finnhub_key = os.getenv("FINNHUB_API_KEY")
@@ -1010,20 +1073,7 @@ def render_sidebar():
         elif level == "warning":
             st.warning(f"⚠️ FinnHub: {status}")
         else:
-            st.error("❌ FinnHub: 未配置")
-
-        # 可选的API密钥
-        st.markdown("*可选配置:*")
-
-        # DeepSeek
-        deepseek_key = os.getenv("DEEPSEEK_API_KEY")
-        status, level = validate_api_key(deepseek_key, "deepseek")
-        if level == "success":
-            st.success(f"✅ DeepSeek: {status}")
-        elif level == "warning":
-            st.warning(f"⚠️ DeepSeek: {status}")
-        else:
-            st.info("ℹ️ DeepSeek: 未配置")
+            st.info("ℹ️ FinnHub: 未配置（A股可忽略）")
 
         # Tushare
         tushare_key = os.getenv("TUSHARE_TOKEN")
