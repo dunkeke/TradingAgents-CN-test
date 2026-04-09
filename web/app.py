@@ -1031,7 +1031,7 @@ def main():
             else:
                 st.warning(f"无法获取同步状态: {resp.status_code}")
         except Exception as e:
-            st.warning(f"同步状态查询失败: {e}")
+            st.warning(f"同步状态查询失败: {e}。请确认后端服务已启动，或检查 WEBAPI_BASE_URL（当前: {backend_url}）。")
         return
 
     # 默认显示股票分析页面
@@ -1049,9 +1049,16 @@ def main():
             st.markdown("""
             ### 🔑 必需的API密钥
             
-            1. **金融数据API密钥** (FINNHUB_API_KEY)
-               - 获取地址: https://finnhub.io/
-               - 用途: 获取股票数据
+            1. **至少一个LLM API密钥**（以下任意一个即可）
+               - `DEEPSEEK_API_KEY`（推荐，获取地址: https://platform.deepseek.com/）
+               - `DASHSCOPE_API_KEY`（阿里百炼）
+               - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `QIANFAN_API_KEY`
+               - 用途: AI模型推理
+            
+            ### 📊 数据源说明
+            
+            - **A股**：默认可直接使用免费 `AkShare` 数据源（无需 FINNHUB）
+            - **美股/港股**：建议配置 `FINNHUB_API_KEY` 以获得更稳定/更丰富的数据
             
             2. **至少一个LLM API密钥**（以下任意一个即可）
                - `DEEPSEEK_API_KEY`（推荐，获取地址: https://platform.deepseek.com/）
@@ -1066,9 +1073,8 @@ def main():
             3. 重启Web应用
             
             ```bash
-            # .env 文件示例（推荐 DeepSeek）
+            # .env 最小可运行示例（A股 + DeepSeek）
             DEEPSEEK_API_KEY=sk-your-deepseek-key
-            FINNHUB_API_KEY=your-finnhub-key
             ```
             """)
         

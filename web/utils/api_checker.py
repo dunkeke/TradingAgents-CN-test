@@ -9,8 +9,9 @@ def check_api_keys():
     """检查API密钥配置状态。
 
     规则：
-    - 必需：FINNHUB_API_KEY（行情数据）
     - 必需：至少配置一个LLM API Key（DeepSeek / DashScope / OpenAI / Anthropic / Google / Qianfan）
+    - 可选：FINNHUB_API_KEY（美股/港股实时增强数据）
+    - A股场景可直接使用 AkShare 免费数据源，无需 FINNHUB_API_KEY
     """
 
     dashscope_key = os.getenv("DASHSCOPE_API_KEY")
@@ -26,19 +27,13 @@ def check_api_keys():
             "configured": bool(deepseek_key),
             "display": f"{deepseek_key[:12]}..." if deepseek_key else "未配置",
             "required": False,
-            "description": "DeepSeek API密钥"
+            "description": "DeepSeek API密钥（推荐）"
         },
         "DASHSCOPE_API_KEY": {
             "configured": bool(dashscope_key),
             "display": f"{dashscope_key[:12]}..." if dashscope_key else "未配置",
             "required": False,
             "description": "阿里百炼API密钥"
-        },
-        "FINNHUB_API_KEY": {
-            "configured": bool(finnhub_key),
-            "display": f"{finnhub_key[:12]}..." if finnhub_key else "未配置",
-            "required": True,
-            "description": "金融数据API密钥"
         },
         "OPENAI_API_KEY": {
             "configured": bool(openai_key),
@@ -64,6 +59,12 @@ def check_api_keys():
             "required": False,
             "description": "文心一言（千帆）API Key（OpenAI兼容），一般以 bce-v3/ 开头"
         },
+        "FINNHUB_API_KEY": {
+            "configured": bool(finnhub_key),
+            "display": f"{finnhub_key[:12]}..." if finnhub_key else "未配置",
+            "required": False,
+            "description": "金融数据API密钥（可选，增强美股/港股数据）"
+        },
     }
 
     llm_provider_keys = [
@@ -77,8 +78,6 @@ def check_api_keys():
     llm_configured = any(details[key]["configured"] for key in llm_provider_keys)
 
     missing_required = []
-    if not details["FINNHUB_API_KEY"]["configured"]:
-        missing_required.append("FINNHUB_API_KEY")
     if not llm_configured:
         missing_required.append("ANY_LLM_API_KEY")
 
@@ -91,8 +90,8 @@ def check_api_keys():
         "summary": {
             "total": len(details),
             "configured": sum(1 for info in details.values() if info["configured"]),
-            "required": 2,
-            "required_configured": 2 - len(missing_required)
+            "required": 1,
+            "required_configured": 1 - len(missing_required)
         }
     }
 
@@ -103,16 +102,9 @@ def get_api_key_status_message():
     status = check_api_keys()
 
     if status["all_configured"]:
-        return "✅ 必需的API密钥已配置完成（含至少一个LLM提供商）"
+        return "✅ 已配置至少一个LLM API密钥，可开始分析（A股可直接用AkShare）"
 
-    missing_required = status["missing_required"]
-    messages = []
-    if "FINNHUB_API_KEY" in missing_required:
-        messages.append("FINNHUB_API_KEY")
-    if "ANY_LLM_API_KEY" in missing_required:
-        messages.append("至少一个LLM API Key（如 DEEPSEEK_API_KEY）")
-
-    return f"❌ 缺少必需配置: {', '.join(messages)}"
+    return "❌ 缺少必需配置: 至少一个LLM API Key（推荐 DEEPSEEK_API_KEY）"
 
 
 def validate_api_key_format(key_type, api_key):
@@ -145,15 +137,9 @@ def validate_api_key_format(key_type, api_key):
 def test_api_connection(key_type, api_key):
     """测试API连接（简单验证）"""
 
-    # 这里可以添加实际的API连接测试
-    # 为了简化，现在只做格式验证
-
     is_valid, message = validate_api_key_format(key_type, api_key)
 
     if not is_valid:
         return False, message
-
-    # 可以在这里添加实际的API调用测试
-    # 例如：调用一个简单的API端点验证密钥有效性
 
     return True, "API密钥验证通过"
