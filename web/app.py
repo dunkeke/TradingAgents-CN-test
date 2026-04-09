@@ -431,22 +431,26 @@ def initialize_session_state():
                     progress_data.get('status') == 'completed' and
                     'raw_results' in progress_data):
 
-                    # 恢复分析结果
                     raw_results = progress_data['raw_results']
-                    formatted_results = format_analysis_results(raw_results)
 
-                    if formatted_results:
-                        st.session_state.analysis_results = formatted_results
-                        st.session_state.current_analysis_id = latest_id
-                        # 检查分析状态
-                        analysis_status = progress_data.get('status', 'completed')
-                        st.session_state.analysis_running = (analysis_status == 'running')
-                        # 恢复股票信息
-                        if 'stock_symbol' in raw_results:
-                            st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
-                        if 'market_type' in raw_results:
-                            st.session_state.last_market_type = raw_results.get('market_type', '')
-                        logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status}")
+                    # 仅恢复成功分析，避免持续加载历史失败结果干扰新分析
+                    if raw_results.get('success', False):
+                        formatted_results = format_analysis_results(raw_results)
+
+                        if formatted_results:
+                            st.session_state.analysis_results = formatted_results
+                            st.session_state.current_analysis_id = latest_id
+                            # 检查分析状态
+                            analysis_status = progress_data.get('status', 'completed')
+                            st.session_state.analysis_running = (analysis_status == 'running')
+                            # 恢复股票信息
+                            if 'stock_symbol' in raw_results:
+                                st.session_state.last_stock_symbol = raw_results.get('stock_symbol', '')
+                            if 'market_type' in raw_results:
+                                st.session_state.last_market_type = raw_results.get('market_type', '')
+                            logger.info(f"📊 [结果恢复] 从分析 {latest_id} 恢复结果，状态: {analysis_status}")
+                    else:
+                        logger.info(f"📊 [结果恢复] 跳过失败分析 {latest_id}，避免污染当前会话")
 
         except Exception as e:
             logger.warning(f"⚠️ [结果恢复] 恢复失败: {e}")
@@ -468,9 +472,13 @@ def initialize_session_state():
             if actual_status == 'running':
                 st.session_state.analysis_running = True
                 st.session_state.current_analysis_id = persistent_analysis_id
-            elif actual_status in ['completed', 'failed']:
+            elif actual_status == 'completed':
                 st.session_state.analysis_running = False
                 st.session_state.current_analysis_id = persistent_analysis_id
+            elif actual_status == 'failed':
+                # 失败任务不再占用当前分析ID，避免页面反复展示旧失败结果
+                st.session_state.analysis_running = False
+                st.session_state.current_analysis_id = None
             else:  # not_found
                 logger.warning(f"📊 [状态检查] 分析 {persistent_analysis_id} 未找到，清理状态")
                 st.session_state.analysis_running = False
