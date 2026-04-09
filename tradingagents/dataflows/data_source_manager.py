@@ -1656,50 +1656,57 @@ class DataSourceManager:
         try:
             import akshare as ak
 
-            # 🔥 转换为 AKShare 格式的股票代码
-            # AKShare 的 stock_individual_info_em 需要使用 "sz000001" 或 "sh600000" 格式
+            # 兼容不同 AKShare 版本：有的版本接受纯6位代码，有的版本接受带市场前缀代码
+            candidates = [symbol]
             if symbol.startswith('6'):
-                # 上海股票：600000 -> sh600000
-                akshare_symbol = f"sh{symbol}"
+                candidates.append(f"sh{symbol}")
             elif symbol.startswith(('0', '3', '2')):
-                # 深圳股票：000001 -> sz000001
-                akshare_symbol = f"sz{symbol}"
+                candidates.append(f"sz{symbol}")
             elif symbol.startswith(('8', '4')):
-                # 北京股票：830000 -> bj830000
-                akshare_symbol = f"bj{symbol}"
-            else:
-                # 其他情况，直接使用原始代码
-                akshare_symbol = symbol
+                candidates.append(f"bj{symbol}")
 
-            logger.debug(f"📊 [AKShare股票信息] 原始代码: {symbol}, AKShare格式: {akshare_symbol}")
+            last_error = None
+            for akshare_symbol in candidates:
+                try:
+                    logger.debug(f"📊 [AKShare股票信息] 尝试代码: {symbol} -> {akshare_symbol}")
+                    stock_info = ak.stock_individual_info_em(symbol=akshare_symbol)
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"⚠️ [AKShare股票信息] 查询失败({akshare_symbol}): {e}")
+                    continue
 
-            # 尝试获取个股信息
-            stock_info = ak.stock_individual_info_em(symbol=akshare_symbol)
+                if stock_info is None or getattr(stock_info, 'empty', True):
+                    logger.warning(f"⚠️ [AKShare股票信息] 返回空数据: {akshare_symbol}")
+                    continue
 
-            if stock_info is not None and not stock_info.empty:
-                # 转换为字典格式
                 info = {'symbol': symbol, 'source': 'akshare'}
 
-                # 提取股票名称
-                name_row = stock_info[stock_info['item'] == '股票简称']
-                if not name_row.empty:
-                    stock_name = name_row['value'].iloc[0]
+                # 兼容列名差异：item/value 或 项目/值
+                item_col = 'item' if 'item' in stock_info.columns else ('项目' if '项目' in stock_info.columns else None)
+                value_col = 'value' if 'value' in stock_info.columns else ('值' if '值' in stock_info.columns else None)
+
+                stock_name = None
+                if item_col and value_col:
+                    name_row = stock_info[stock_info[item_col].astype(str).str.contains('股票简称')]
+                    if not name_row.empty:
+                        stock_name = str(name_row[value_col].iloc[0]).strip()
+
+                if stock_name:
                     info['name'] = stock_name
                     logger.info(f"✅ [AKShare股票信息] {symbol} -> {stock_name}")
                 else:
                     info['name'] = f'股票{symbol}'
                     logger.warning(f"⚠️ [AKShare股票信息] 未找到股票简称: {symbol}")
 
-                # 提取其他信息
-                info['area'] = '未知'  # AKShare没有地区信息
-                info['industry'] = '未知'  # 可以通过其他API获取
-                info['market'] = '未知'  # 可以根据股票代码推断
-                info['list_date'] = '未知'  # 可以通过其他API获取
-
+                info['area'] = '未知'
+                info['industry'] = '未知'
+                info['market'] = '未知'
+                info['list_date'] = '未知'
                 return info
-            else:
-                logger.warning(f"⚠️ [AKShare股票信息] 返回空数据: {symbol}")
-                return {'symbol': symbol, 'name': f'股票{symbol}', 'source': 'akshare'}
+
+            err_msg = str(last_error) if last_error else '空结果'
+            logger.error(f"❌ [股票信息] AKShare获取失败: {symbol}, 错误: {err_msg}")
+            return {'symbol': symbol, 'name': f'股票{symbol}', 'source': 'akshare', 'error': err_msg}
 
         except Exception as e:
             logger.error(f"❌ [股票信息] AKShare获取失败: {symbol}, 错误: {e}")
