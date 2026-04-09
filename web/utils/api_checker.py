@@ -3,6 +3,34 @@ API密钥检查工具
 """
 
 import os
+import streamlit as st
+
+
+def _read_api_key(key: str) -> str:
+    """优先读取环境变量，若为空则回退读取 Streamlit secrets。"""
+    env_value = os.getenv(key)
+    if env_value:
+        return env_value
+
+    try:
+        # 顶层 secrets: DEEPSEEK_API_KEY="..."
+        top_level = st.secrets.get(key)
+        if top_level:
+            return str(top_level)
+
+        # 嵌套 secrets: [api_keys] DEEPSEEK_API_KEY="..."
+        for section_name in ("api_keys", "keys", "llm", "providers"):
+            section = st.secrets.get(section_name)
+            if section and hasattr(section, "get"):
+                nested = section.get(key)
+                if nested:
+                    return str(nested)
+    except Exception:
+        # 非Streamlit环境或secrets不可用
+        return ""
+
+    return ""
+
 
 
 def check_api_keys():
@@ -14,13 +42,13 @@ def check_api_keys():
     - A股场景可直接使用 AkShare 免费数据源，无需 FINNHUB_API_KEY
     """
 
-    dashscope_key = os.getenv("DASHSCOPE_API_KEY")
-    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
-    finnhub_key = os.getenv("FINNHUB_API_KEY")
-    openai_key = os.getenv("OPENAI_API_KEY")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-    google_key = os.getenv("GOOGLE_API_KEY")
-    qianfan_key = os.getenv("QIANFAN_API_KEY")
+    dashscope_key = _read_api_key("DASHSCOPE_API_KEY")
+    deepseek_key = _read_api_key("DEEPSEEK_API_KEY")
+    finnhub_key = _read_api_key("FINNHUB_API_KEY")
+    openai_key = _read_api_key("OPENAI_API_KEY")
+    anthropic_key = _read_api_key("ANTHROPIC_API_KEY")
+    google_key = _read_api_key("GOOGLE_API_KEY")
+    qianfan_key = _read_api_key("QIANFAN_API_KEY")
 
     details = {
         "DEEPSEEK_API_KEY": {

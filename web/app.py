@@ -1110,6 +1110,7 @@ def main():
 
         # 显示当前API密钥状态
         st.subheader("🔍 当前API密钥状态")
+        st.caption(f"调试信息: llm_configured={api_status.get('llm_configured')} | missing_required={api_status.get('missing_required')}")
         for key, status in api_status['details'].items():
             if status['configured']:
                 st.success(f"✅ {key}: {status['display']}")
