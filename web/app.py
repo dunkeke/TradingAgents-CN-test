@@ -1049,13 +1049,15 @@ def main():
             st.markdown("""
             ### 🔑 必需的API密钥
             
-            1. **阿里百炼API密钥** (DASHSCOPE_API_KEY)
-               - 获取地址: https://dashscope.aliyun.com/
-               - 用途: AI模型推理
-            
-            2. **金融数据API密钥** (FINNHUB_API_KEY)  
+            1. **金融数据API密钥** (FINNHUB_API_KEY)
                - 获取地址: https://finnhub.io/
                - 用途: 获取股票数据
+            
+            2. **至少一个LLM API密钥**（以下任意一个即可）
+               - `DEEPSEEK_API_KEY`（推荐，获取地址: https://platform.deepseek.com/）
+               - `DASHSCOPE_API_KEY`（阿里百炼）
+               - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `QIANFAN_API_KEY`
+               - 用途: AI模型推理
             
             ### ⚙️ 配置方法
             
@@ -1064,8 +1066,8 @@ def main():
             3. 重启Web应用
             
             ```bash
-            # .env 文件示例
-            DASHSCOPE_API_KEY=sk-your-dashscope-key
+            # .env 文件示例（推荐 DeepSeek）
+            DEEPSEEK_API_KEY=sk-your-deepseek-key
             FINNHUB_API_KEY=your-finnhub-key
             ```
             """)
