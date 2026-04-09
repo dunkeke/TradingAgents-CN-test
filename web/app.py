@@ -30,6 +30,38 @@ except ImportError:
 # 加载环境变量
 load_dotenv(project_root / ".env", override=True)
 
+
+def _sync_streamlit_secrets_to_env() -> None:
+    """将 Streamlit Cloud Secrets 同步到环境变量（仅在对应变量为空时）。"""
+    secret_keys = [
+        "DEEPSEEK_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GOOGLE_API_KEY",
+        "QIANFAN_API_KEY",
+        "FINNHUB_API_KEY",
+        "TUSHARE_TOKEN",
+        "WEBAPI_BASE_URL",
+    ]
+
+    try:
+        secrets = st.secrets
+    except Exception:
+        # 非 Streamlit Cloud 或未配置 secrets 时，直接跳过
+        return
+
+    for key in secret_keys:
+        if os.getenv(key):
+            continue
+
+        value = secrets.get(key)
+        if value:
+            os.environ[key] = str(value)
+            logger.info(f"🔐 已从 Streamlit Secrets 加载 {key}")
+
+
+_sync_streamlit_secrets_to_env()
 # 导入自定义组件
 from components.sidebar import render_sidebar
 from components.header import render_header
@@ -1059,12 +1091,6 @@ def main():
             
             - **A股**：默认可直接使用免费 `AkShare` 数据源（无需 FINNHUB）
             - **美股/港股**：建议配置 `FINNHUB_API_KEY` 以获得更稳定/更丰富的数据
-            
-            2. **至少一个LLM API密钥**（以下任意一个即可）
-               - `DEEPSEEK_API_KEY`（推荐，获取地址: https://platform.deepseek.com/）
-               - `DASHSCOPE_API_KEY`（阿里百炼）
-               - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `QIANFAN_API_KEY`
-               - 用途: AI模型推理
             
             ### ⚙️ 配置方法
             
