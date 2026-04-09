@@ -1060,6 +1060,12 @@ def main():
             - **A股**：默认可直接使用免费 `AkShare` 数据源（无需 FINNHUB）
             - **美股/港股**：建议配置 `FINNHUB_API_KEY` 以获得更稳定/更丰富的数据
             
+            2. **至少一个LLM API密钥**（以下任意一个即可）
+               - `DEEPSEEK_API_KEY`（推荐，获取地址: https://platform.deepseek.com/）
+               - `DASHSCOPE_API_KEY`（阿里百炼）
+               - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `QIANFAN_API_KEY`
+               - 用途: AI模型推理
+            
             ### ⚙️ 配置方法
             
             1. 复制项目根目录的 `.env.example` 为 `.env`
