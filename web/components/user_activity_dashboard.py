@@ -5,8 +5,14 @@
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ModuleNotFoundError:
+    px = None
+    go = None
+    PLOTLY_AVAILABLE = False
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import json
@@ -18,6 +24,11 @@ try:
 except ImportError:
     user_activity_logger = None
     auth_manager = None
+
+def _plotly_notice():
+    """显示 plotly 缺失提示"""
+    st.info("📉 未检测到 plotly，已自动切换为基础图表。若需交互图表，请安装 `plotly` 依赖。")
+
 
 def render_user_activity_dashboard():
     """渲染用户活动仪表板"""
@@ -124,12 +135,20 @@ def render_activity_charts(activities: List[Dict[str, Any]]):
         activity_types[action_type] = activity_types.get(action_type, 0) + 1
     
     if activity_types:
-        fig_pie = px.pie(
-            values=list(activity_types.values()),
-            names=list(activity_types.keys()),
-            title="活动类型分布"
-        )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        if PLOTLY_AVAILABLE:
+            fig_pie = px.pie(
+                values=list(activity_types.values()),
+                names=list(activity_types.keys()),
+                title="活动类型分布"
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            _plotly_notice()
+            pie_df = pd.DataFrame({
+                "活动类型": list(activity_types.keys()),
+                "数量": list(activity_types.values())
+            }).set_index("活动类型")
+            st.bar_chart(pie_df)
     
     # 按时间统计
     st.subheader("📅 按时间统计")
@@ -141,22 +160,26 @@ def render_activity_charts(activities: List[Dict[str, Any]]):
     if daily_activities:
         dates = sorted(daily_activities.keys())
         counts = [daily_activities[date] for date in dates]
-        
-        fig_line = go.Figure()
-        fig_line.add_trace(go.Scatter(
-            x=dates,
-            y=counts,
-            mode='lines+markers',
-            name='每日活动数',
-            line=dict(color='#1f77b4', width=2),
-            marker=dict(size=6)
-        ))
-        fig_line.update_layout(
-            title="每日活动趋势",
-            xaxis_title="日期",
-            yaxis_title="活动数量"
-        )
-        st.plotly_chart(fig_line, use_container_width=True)
+
+        if PLOTLY_AVAILABLE:
+            fig_line = go.Figure()
+            fig_line.add_trace(go.Scatter(
+                x=dates,
+                y=counts,
+                mode='lines+markers',
+                name='每日活动数',
+                line=dict(color='#1f77b4', width=2),
+                marker=dict(size=6)
+            ))
+            fig_line.update_layout(
+                title="每日活动趋势",
+                xaxis_title="日期",
+                yaxis_title="活动数量"
+            )
+            st.plotly_chart(fig_line, use_container_width=True)
+        else:
+            line_df = pd.DataFrame({"日期": dates, "活动数量": counts}).set_index("日期")
+            st.line_chart(line_df)
     
     # 按用户统计
     st.subheader("👥 按用户统计")
@@ -170,15 +193,19 @@ def render_activity_charts(activities: List[Dict[str, Any]]):
         top_users = sorted(user_activities.items(), key=lambda x: x[1], reverse=True)[:10]
         usernames = [item[0] for item in top_users]
         counts = [item[1] for item in top_users]
-        
-        fig_bar = px.bar(
-            x=counts,
-            y=usernames,
-            orientation='h',
-            title="用户活动排行榜 (前10名)",
-            labels={'x': '活动数量', 'y': '用户名'}
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
+
+        if PLOTLY_AVAILABLE:
+            fig_bar = px.bar(
+                x=counts,
+                y=usernames,
+                orientation='h',
+                title="用户活动排行榜 (前10名)",
+                labels={'x': '活动数量', 'y': '用户名'}
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            bar_df = pd.DataFrame({"用户名": usernames, "活动数量": counts}).set_index("用户名")
+            st.bar_chart(bar_df)
 
 def render_activity_list(activities: List[Dict[str, Any]]):
     """渲染活动列表"""

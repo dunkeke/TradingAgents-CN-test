@@ -30,6 +30,38 @@ except ImportError:
 # 加载环境变量
 load_dotenv(project_root / ".env", override=True)
 
+
+def _sync_streamlit_secrets_to_env() -> None:
+    """将 Streamlit Cloud Secrets 同步到环境变量（仅在对应变量为空时）。"""
+    secret_keys = [
+        "DEEPSEEK_API_KEY",
+        "DASHSCOPE_API_KEY",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GOOGLE_API_KEY",
+        "QIANFAN_API_KEY",
+        "FINNHUB_API_KEY",
+        "TUSHARE_TOKEN",
+        "WEBAPI_BASE_URL",
+    ]
+
+    try:
+        secrets = st.secrets
+    except Exception:
+        # 非 Streamlit Cloud 或未配置 secrets 时，直接跳过
+        return
+
+    for key in secret_keys:
+        if os.getenv(key):
+            continue
+
+        value = secrets.get(key)
+        if value:
+            os.environ[key] = str(value)
+            logger.info(f"🔐 已从 Streamlit Secrets 加载 {key}")
+
+
+_sync_streamlit_secrets_to_env()
 # 导入自定义组件
 from components.sidebar import render_sidebar
 from components.header import render_header
@@ -1031,7 +1063,7 @@ def main():
             else:
                 st.warning(f"无法获取同步状态: {resp.status_code}")
         except Exception as e:
-            st.warning(f"同步状态查询失败: {e}")
+            st.warning(f"同步状态查询失败: {e}。请确认后端服务已启动，或检查 WEBAPI_BASE_URL（当前: {backend_url}）。")
         return
 
     # 默认显示股票分析页面
@@ -1039,49 +1071,53 @@ def main():
     if not require_permission("analysis"):
         return
         
+    # 先渲染侧边栏（允许用户在界面中输入运行时API密钥）
+    config = render_sidebar()
+
     # 检查API密钥
     api_status = check_api_keys()
-    
+
     if not api_status['all_configured']:
         st.error("⚠️ API密钥配置不完整，请先配置必要的API密钥")
-        
+
         with st.expander("📋 API密钥配置指南", expanded=True):
             st.markdown("""
             ### 🔑 必需的API密钥
-            
-            1. **阿里百炼API密钥** (DASHSCOPE_API_KEY)
-               - 获取地址: https://dashscope.aliyun.com/
+
+            1. **至少一个LLM API密钥**（以下任意一个即可）
+               - `DEEPSEEK_API_KEY`（推荐，获取地址: https://platform.deepseek.com/）
+               - `DASHSCOPE_API_KEY`（阿里百炼）
+               - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `QIANFAN_API_KEY`
                - 用途: AI模型推理
-            
-            2. **金融数据API密钥** (FINNHUB_API_KEY)  
-               - 获取地址: https://finnhub.io/
-               - 用途: 获取股票数据
-            
+
+            ### 📊 数据源说明
+
+            - **A股**：默认可直接使用免费 `AkShare` 数据源（无需 FINNHUB）
+            - **美股/港股**：建议配置 `FINNHUB_API_KEY` 以获得更稳定/更丰富的数据
+
             ### ⚙️ 配置方法
-            
+
             1. 复制项目根目录的 `.env.example` 为 `.env`
             2. 编辑 `.env` 文件，填入您的真实API密钥
-            3. 重启Web应用
-            
+            3. 或者在左侧边栏「输入API密钥（仅当前会话）」中直接粘贴并应用
+            4. 重启Web应用（如使用`.env`方式）
+
             ```bash
-            # .env 文件示例
-            DASHSCOPE_API_KEY=sk-your-dashscope-key
-            FINNHUB_API_KEY=your-finnhub-key
+            # .env 最小可运行示例（A股 + DeepSeek）
+            DEEPSEEK_API_KEY=sk-your-deepseek-key
             ```
             """)
-        
+
         # 显示当前API密钥状态
         st.subheader("🔍 当前API密钥状态")
+        st.caption(f"调试信息: llm_configured={api_status.get('llm_configured')} | missing_required={api_status.get('missing_required')}")
         for key, status in api_status['details'].items():
             if status['configured']:
                 st.success(f"✅ {key}: {status['display']}")
             else:
                 st.error(f"❌ {key}: 未配置")
-        
+
         return
-    
-    # 渲染侧边栏
-    config = render_sidebar()
     
     # 添加使用指南显示切换
     # 如果正在分析或有分析结果，默认隐藏使用指南
